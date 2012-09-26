@@ -194,18 +194,18 @@ void pointcloud_process()
 	cin >> filename;
 
 	// move point cloud
-	/*
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr points (new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr points_out (new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::io::loadPCDFile(filename, *points);
-	pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZRGB>(*points, *points_out);
-	for (size_t i = 0; i < points->size(); ++i) {
-		points_out->points[i].x += 0.5;
-	}
-	pcl::io::savePCDFile("Seg_01_far.pcd", *points_out);
-	*/
-	// stl model test
 	///*
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr points (new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::io::loadPCDFile(filename, *points);
+	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> filter;
+	filter.setInputCloud (points);
+	filter.setMeanK (100);
+	filter.setStddevMulThresh (1.0);
+	filter.filter (*points);
+	pcl::io::savePCDFileASCII("filter.pcd", *points);
+	//*/
+	// stl model test
+	/*
 	pcl::PolygonMesh::Ptr model_mesh(new pcl::PolygonMesh);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointNormal>::Ptr plane_point (new pcl::PointCloud<pcl::PointNormal>);
@@ -231,7 +231,7 @@ void pointcloud_process()
 	pcl::io::savePCDFileASCII("plane_point.pcd", *plane_point);
 	viewer.spin();
 	//model_mesh->polygons[0].vertices[0]
-	//*/
+	*/
 
 	
 	// old test
