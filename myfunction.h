@@ -13,11 +13,12 @@
 #include <pcl/keypoints/uniform_sampling.h>
 #include <pcl/registration/transforms.h>
 #include <pcl/registration/registration.h>
-#include <pcl/registration/gicp.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
 #include <pcl/registration/ia_ransac.h>
+#include <pcl/registration/icp.h>
 #include <pcl/registration/correspondence_estimation.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 
 typedef pcl::PointXYZ PointType;
 typedef pcl::FPFHSignature33 FeatureType;
