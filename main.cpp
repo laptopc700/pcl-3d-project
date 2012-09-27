@@ -397,7 +397,6 @@ void point_to_plane_icp()
 	icp.setTransformationEstimation(point_to_plane);
 	icp.setInputCloud(src);
 	icp.setInputTarget(tgt);
-	icp.setRANSACOutlierRejectionThreshold (0.05);
 	icp.setRANSACIterations(100);
 	icp.setMaximumIterations(500);
 	icp.setTransformationEpsilon(1e-3);
@@ -440,6 +439,7 @@ int main()
 		functionPtr = funcList;
 		for (; key = functionPtr->key; ++functionPtr) {
 			if (input_key == key) {
+				system("CLS");
 				functionPtr->fptr();
 				isExeced = true;
 				break;
