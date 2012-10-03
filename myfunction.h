@@ -1,22 +1,30 @@
 #include <iostream>
 #include <vector>
 
+#include <pcl/point_types.h>
+#include <pcl/TextureMesh.h>
+
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/io/vtk_io.h>
 #include <pcl/io/vtk_lib_io.h>
-#include <pcl/point_types.h>
+#include <pcl/io/obj_io.h>
+
 #include <pcl/features/vfh.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/features/fpfh_omp.h>
+
 #include <pcl/keypoints/sift_keypoint.h>
 #include <pcl/keypoints/uniform_sampling.h>
+
 #include <pcl/registration/transforms.h>
 #include <pcl/registration/registration.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/registration/icp.h>
 #include <pcl/registration/correspondence_estimation.h>
+
+#include <pcl/surface/texture_mapping.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 
