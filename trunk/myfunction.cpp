@@ -154,7 +154,7 @@ void vfh_demo()
 
 
 //
-// 對 mesh model 的每一個 face 找出中心點與 normal
+// 對 mesh model 的每一個 face 找出中心點與 normal, return point at the center of face and its normal
 //
 void mesh_convert_plane(const pcl::PolygonMesh::Ptr &mesh, const pcl::PointCloud<pcl::PointNormal>::Ptr &plane_point)
 {
@@ -193,45 +193,88 @@ void pointcloud_process()
 	cout << "Input process filename: ";
 	cin >> filename;
 
-	// move point cloud
-	///*
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr points (new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::io::loadPCDFile(filename, *points);
-	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> filter;
-	filter.setInputCloud (points);
-	filter.setMeanK (100);
-	filter.setStddevMulThresh (1.0);
-	filter.filter (*points);
-	pcl::io::savePCDFileASCII("filter.pcd", *points);
-	//*/
 	// stl model test
-	/*
+	///*
 	pcl::PolygonMesh::Ptr model_mesh(new pcl::PolygonMesh);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointNormal>::Ptr plane_point (new pcl::PointCloud<pcl::PointNormal>);
+	pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
+	pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 
 	pcl::io::loadPolygonFileSTL(filename, *model_mesh);
 	pcl::fromROSMsg(model_mesh->cloud, *cloud);
 
-	cout << "number of model surfaces: " << model_mesh->polygons.size() << endl;
 	cout << "number of model vertex: " << cloud->points.size() << endl;
+	cout << "number of model surfaces: " << model_mesh->polygons.size() << endl;
+
+	//pcl::visualization::PCLVisualizer viewer;
+	//viewer.setBackgroundColor(0.2, 0.3, 0.4);
+
+	//viewer.addPolygonMesh(*model_mesh, "polygon");
+
+	//pcl::PointCloud<pcl::PointXYZ>::Ptr model (new pcl::PointCloud<pcl::PointXYZ>);
+	//viewer.addPointCloud(model, "cloud");
+	//viewer.spin();
+
+	compute_surface_normals(cloud, normals);
+	pcl::concatenateFields(*cloud, *normals, *cloud_with_normals);
 
 
-	pcl::visualization::PCLVisualizer viewer;
-	viewer.setBackgroundColor(0.2, 0.3, 0.4);
+	// test texture mapping
+	pcl::TextureMapping<pcl::PointXYZ> tm;
 
-	viewer.addPolygonMesh(*model_mesh, "polygon");
+	tm.setF(0.01);
+	tm.setVectorField(1, 0, 0);
 
-	pcl::PointCloud<pcl::PointXYZ>::Ptr model (new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::io::loadPCDFile("final.pcd", *model);
-	viewer.addPointCloud(model, "cloud");
+	pcl::TexMaterial tex_material;
+	tex_material.tex_Ka.r = 0.2f;
+    tex_material.tex_Ka.g = 0.2f;
+    tex_material.tex_Ka.b = 0.2f;
+
+    tex_material.tex_Kd.r = 0.8f;
+    tex_material.tex_Kd.g = 0.8f;
+    tex_material.tex_Kd.b = 0.8f;
+
+    tex_material.tex_Ks.r = 1.0f;
+    tex_material.tex_Ks.g = 1.0f;
+    tex_material.tex_Ks.b = 1.0f;
+    tex_material.tex_d = 1.0f;
+    tex_material.tex_Ns = 0.0f;
+    tex_material.tex_illum = 2;
+
+	tm.setTextureMaterials(tex_material);
+	std::vector<std::string> tex_files;
+	tex_files.push_back("RGB.jpg");
+
 	mesh_convert_plane(model_mesh, plane_point);
+	pcl::TextureMesh tex_mesh;
+	tex_mesh.header = model_mesh->header;
+	tex_mesh.cloud = model_mesh->cloud;
+	tex_mesh.tex_polygons.push_back(model_mesh->polygons);
 
-	pcl::io::savePCDFileASCII("model_cloud.pcd", *cloud);
-	pcl::io::savePCDFileASCII("plane_point.pcd", *plane_point);
-	viewer.spin();
-	//model_mesh->polygons[0].vertices[0]
-	*/
+
+	tm.setTextureFiles(tex_files);
+	//tm.mapTexture2Mesh(tex_mesh);
+	tm.mapTexture2MeshUV(tex_mesh);
+
+	pcl::toROSMsg(*cloud_with_normals, tex_mesh.cloud);
+	//pcl::io::saveOBJFile("tex_mesh.obj", tex_mesh, 8);
+	//cout << "tex_mesh.tex_coordinates.size: " << tex_mesh.tex_coordinates.size() << endl;
+	for (int i = 0; i < tex_mesh.tex_coordinates.size(); ++i) {
+		//cout << "tex_mesh.tex_coordinates[0].size: " << tex_mesh.tex_coordinates[0].size() << endl;
+		//for (int j = 0; j < tex_mesh.tex_coordinates[0].size(); ++j) {
+		//	cout << tex_mesh.tex_coordinates[0][j][0] << endl;
+		//	cout << tex_mesh.tex_coordinates[0][j][1] << endl;
+		//}
+	}
+	cout << "done" << endl;
+	char c;
+	cin >> c;
+	//mesh_convert_plane(model_mesh, plane_point);
+	//pcl::io::savePCDFileASCII("model_cloud.pcd", *cloud);
+	//pcl::io::savePCDFileASCII("plane_point.pcd", *plane_point);
+
+	//*/
 
 	
 	// old test
