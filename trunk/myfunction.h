@@ -57,3 +57,5 @@ void pointcloud_demo();
 void vfh_demo();
 
 void pointcloud_process();
+
+void model_to_plane_point();
