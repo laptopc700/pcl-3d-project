@@ -339,26 +339,26 @@ void point_to_plane_icp()
 	pcl::PointCloud<pcl::Normal>::Ptr normals2 (new pcl::PointCloud<pcl::Normal>);
 	pcl::PointCloud<FeatureType>::Ptr descriptor2 (new pcl::PointCloud<FeatureType>);
 
+	// Load data
 	pcl::io::loadPCDFile(filename_1, *points1);
 	pcl::io::loadPCDFile(filename_2, *points2);
 
+	// Create new point cloud for icp
 	pcl::PointCloud<pcl::PointNormal>::Ptr src(new pcl::PointCloud<pcl::PointNormal>);
 	pcl::copyPointCloud(*points1, *src);
 	pcl::PointCloud<pcl::PointNormal>::Ptr tgt(new pcl::PointCloud<pcl::PointNormal>);
 	pcl::copyPointCloud(*points2, *tgt);
 
+	// Compute normals
 	pcl::NormalEstimation<pcl::PointNormal, pcl::PointNormal> norm_est;
 	norm_est.setKSearch(KSEARCH_SIZE);
-
 	norm_est.setInputCloud(src);
 	norm_est.compute(*src);
-
 	norm_est.setInputCloud(tgt);
 	norm_est.compute(*tgt);
 
 	// Compute feature
 	pcl::FPFHEstimationOMP<pcl::PointNormal, pcl::Normal, FeatureType> fpfh;
-
 	fpfh.setKSearch(KSEARCH_SIZE);
 
 	fpfh.setSearchSurface(src);
@@ -375,7 +375,7 @@ void point_to_plane_icp()
 
 	// Initial alignment
 	pcl::SampleConsensusInitialAlignment<pcl::PointNormal, pcl::PointNormal, FeatureType> sac_ia;
-	sac_ia.setMinSampleDistance(0.035);
+	sac_ia.setMinSampleDistance(0.04);
 	sac_ia.setMaxCorrespondenceDistance(0.01);
 	sac_ia.setMaximumIterations(1000);
 
@@ -389,7 +389,7 @@ void point_to_plane_icp()
 	sac_ia.align(*initial_output);
 	Eigen::Matrix4f initial_transform = sac_ia.getFinalTransformation();
 
-
+	// point to plane icp
 	pcl::transformPointCloud (*src, *src, initial_transform);
 	pcl::IterativeClosestPoint<pcl::PointNormal, pcl::PointNormal> icp;
 	typedef pcl::registration::TransformationEstimationPointToPlaneLLS<pcl::PointNormal, pcl::PointNormal> PointToPlane;
@@ -407,8 +407,7 @@ void point_to_plane_icp()
 	Eigen::Matrix4f final_transform = icp.getFinalTransformation() * initial_transform;
 
 	pcl::PointCloud<PointType>::Ptr final (new pcl::PointCloud<PointType>);
-	pcl::transformPointCloud (*points1, *final, final_transform);
-	//*final += *points2;
+	pcl::transformPointCloud(*points1, *final, final_transform);
 	pcl::io::savePCDFile(filename_1 + "_transformed.pcd", *final);
 }
 
@@ -424,9 +423,10 @@ int main()
 		normals_demo, 4,
 		vfh_demo, 5,
 		remove_nan, 6,
-		coorespondences_demo, 7,
-		icp_demo, 8,
-		point_to_plane_icp, 9,
+		model_to_plane_point, 7,
+		coorespondences_demo, 8,
+		icp_demo, 9,
+		point_to_plane_icp, 10,
 		NULL, '\0'
 	};
 	func *functionPtr;
@@ -446,6 +446,7 @@ int main()
 			}
 		}
 
+		system("PAUSE");
 		system("CLS");
 		if (isExeced == false)
 			cerr << "No such function!" << endl << endl;

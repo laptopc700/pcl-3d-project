@@ -12,9 +12,10 @@ void prtUsage()
 	cout << "(4) normals_demo" << endl;
 	cout << "(5) vfh_demo" << endl;
 	cout << "(6) remove_nan" << endl;
-	cout << "(7) coorespondences_demo" << endl;
-	cout << "(8) icp_demo" << endl;
-	cout << "(9) point_to_plane_icp" << endl << endl;
+	cout << "(7) model_to_plane_point" << endl;
+	cout << "(8) coorespondences_demo" << endl;
+	cout << "(9) icp_demo" << endl;
+	cout << "(10) point_to_plane_icp" << endl << endl;
 	cout << "Input exec function: ";
 }
 
@@ -184,6 +185,30 @@ void mesh_convert_plane(const pcl::PolygonMesh::Ptr &mesh, const pcl::PointCloud
 	}
 }
 
+
+void model_to_plane_point()
+{
+	string filename;
+	cout << "Input model filename: ";
+	cin >> filename;
+
+	pcl::PolygonMesh::Ptr model_mesh(new pcl::PolygonMesh);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointNormal>::Ptr plane_point (new pcl::PointCloud<pcl::PointNormal>);
+
+	pcl::io::loadPolygonFileSTL(filename, *model_mesh);
+	pcl::fromROSMsg(model_mesh->cloud, *cloud);
+
+	//cout << "number of model vertex: " << cloud->points.size() << endl;
+	//cout << "number of model surfaces: " << model_mesh->polygons.size() << endl;
+
+	mesh_convert_plane(model_mesh, plane_point);
+
+	pcl::io::savePCDFileASCII("model_cloud.pcd", *cloud);
+	pcl::io::savePCDFileASCII("plane_point.pcd", *plane_point);
+}
+
+
 //
 // 對 pointcloude 做特定處理, 測試用
 //
@@ -193,20 +218,29 @@ void pointcloud_process()
 	cout << "Input process filename: ";
 	cin >> filename;
 
-	// stl model test
 	///*
-	pcl::PolygonMesh::Ptr model_mesh(new pcl::PolygonMesh);
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PointCloud<pcl::PointNormal>::Ptr plane_point (new pcl::PointCloud<pcl::PointNormal>);
-	pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
 	pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 
-	pcl::io::loadPolygonFileSTL(filename, *model_mesh);
-	pcl::fromROSMsg(model_mesh->cloud, *cloud);
+	pcl::io::loadPCDFile(filename, *cloud);
 
-	cout << "number of model vertex: " << cloud->points.size() << endl;
-	cout << "number of model surfaces: " << model_mesh->polygons.size() << endl;
+	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+	kdtree.setInputCloud(cloud);
 
+	double nbr_dist = 0;
+	for (int i = 0; i < cloud->size(); ++i) {
+		vector<int> pointNbrIdx;
+		vector<float> pointNbrSquaredDistance;
+		if (kdtree.nearestKSearch(i, 2, pointNbrIdx, pointNbrSquaredDistance) <= 0) {
+			cout << "error happen" << endl;
+		}
+		cout << i << "  " << pointNbrIdx[0] << endl;
+		nbr_dist += pointNbrSquaredDistance[0];
+	}
+
+	//cout << pointNbrSquaredDistance << endl;
+	cout << nbr_dist / cloud->size() << endl;
 	//pcl::visualization::PCLVisualizer viewer;
 	//viewer.setBackgroundColor(0.2, 0.3, 0.4);
 
@@ -216,99 +250,8 @@ void pointcloud_process()
 	//viewer.addPointCloud(model, "cloud");
 	//viewer.spin();
 
-	compute_surface_normals(cloud, normals);
-	pcl::concatenateFields(*cloud, *normals, *cloud_with_normals);
-
-
-	// test texture mapping
-	pcl::TextureMapping<pcl::PointXYZ> tm;
-
-	tm.setF(0.01);
-	tm.setVectorField(1, 0, 0);
-
-	pcl::TexMaterial tex_material;
-	tex_material.tex_Ka.r = 0.2f;
-    tex_material.tex_Ka.g = 0.2f;
-    tex_material.tex_Ka.b = 0.2f;
-
-    tex_material.tex_Kd.r = 0.8f;
-    tex_material.tex_Kd.g = 0.8f;
-    tex_material.tex_Kd.b = 0.8f;
-
-    tex_material.tex_Ks.r = 1.0f;
-    tex_material.tex_Ks.g = 1.0f;
-    tex_material.tex_Ks.b = 1.0f;
-    tex_material.tex_d = 1.0f;
-    tex_material.tex_Ns = 0.0f;
-    tex_material.tex_illum = 2;
-
-	tm.setTextureMaterials(tex_material);
-	std::vector<std::string> tex_files;
-	tex_files.push_back("RGB.jpg");
-
-	mesh_convert_plane(model_mesh, plane_point);
-	pcl::TextureMesh tex_mesh;
-	tex_mesh.header = model_mesh->header;
-	tex_mesh.cloud = model_mesh->cloud;
-	tex_mesh.tex_polygons.push_back(model_mesh->polygons);
-
-
-	tm.setTextureFiles(tex_files);
-	//tm.mapTexture2Mesh(tex_mesh);
-	tm.mapTexture2MeshUV(tex_mesh);
-
-	pcl::toROSMsg(*cloud_with_normals, tex_mesh.cloud);
-	//pcl::io::saveOBJFile("tex_mesh.obj", tex_mesh, 8);
-	//cout << "tex_mesh.tex_coordinates.size: " << tex_mesh.tex_coordinates.size() << endl;
-	for (int i = 0; i < tex_mesh.tex_coordinates.size(); ++i) {
-		//cout << "tex_mesh.tex_coordinates[0].size: " << tex_mesh.tex_coordinates[0].size() << endl;
-		//for (int j = 0; j < tex_mesh.tex_coordinates[0].size(); ++j) {
-		//	cout << tex_mesh.tex_coordinates[0][j][0] << endl;
-		//	cout << tex_mesh.tex_coordinates[0][j][1] << endl;
-		//}
-	}
-	cout << "done" << endl;
-	char c;
-	cin >> c;
-	//mesh_convert_plane(model_mesh, plane_point);
-	//pcl::io::savePCDFileASCII("model_cloud.pcd", *cloud);
-	//pcl::io::savePCDFileASCII("plane_point.pcd", *plane_point);
-
 	//*/
 
-	
-	// old test
-	/*
-	// Create new point clouds to hold data
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr points (new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::PointCloud<pcl::PointXYZ>::Ptr points_out (new pcl::PointCloud<pcl::PointXYZ>);
-
-	// Load point cloud
-	pcl::io::loadPCDFile(filename, *points);
-
-	pcl::PointCloud<int> sampled_indices;
-	pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(*points, *points_out);
-
-	points_out->width = points->width;
-	points_out->height = 1;
-	points_out->resize(points_out->width);
-	size_t cnt = 0;
-	float min = points->points[0].z, max = points->points[0].z;
-	for (size_t i = 0; i < points->size(); ++i) {
-		if (points->points[i].z > max) max = points->points[i].z;
-		if (points->points[i].z < min) min = points->points[i].z;
-	}
-	cout << min << " " << max << endl;
-	float mid = (max + min) / 2;
-	for (size_t i = 0; i < points->size(); ++i) {
-		if (points->points[i].z < mid) {
-			points_out->points[cnt] = points->points[i];
-			++cnt;
-		}
-	}
-	points_out->width = cnt;
-	points_out->resize(points_out->width);
-	*/
 	//pcl::visualization::PCLVisualizer viewer;
 	//viewer.addPointCloud(points_out, "points");
 	//viewer.spin();
