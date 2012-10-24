@@ -12,6 +12,7 @@
 
 #include <pcl/features/vfh.h>
 #include <pcl/features/normal_3d_omp.h>
+#include <pcl/features/pfh.h>
 #include <pcl/features/fpfh_omp.h>
 
 #include <pcl/keypoints/sift_keypoint.h>
@@ -27,6 +28,7 @@
 #include <pcl/surface/texture_mapping.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/radius_outlier_removal.h>
 
 typedef pcl::PointXYZ PointType;
 typedef pcl::FPFHSignature33 FeatureType;

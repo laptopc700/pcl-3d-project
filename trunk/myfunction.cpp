@@ -186,6 +186,9 @@ void mesh_convert_plane(const pcl::PolygonMesh::Ptr &mesh, const pcl::PointCloud
 }
 
 
+//
+// 算出 model 所有 face 的中點，存成 plane_point.pcd ，vertex 存成 model_cloud.pcd
+//
 void model_to_plane_point()
 {
 	string filename;
@@ -210,6 +213,17 @@ void model_to_plane_point()
 
 
 //
+//
+//
+void filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud)
+{
+	pcl::RadiusOutlierRemoval<pcl::PointXYZ> radius_filter;
+	radius_filter.setInputCloud(cloud);
+	radius_filter.setRadiusSearch(0.01);
+	radius_filter.setMinNeighborsInRadius(30);
+	radius_filter.filter(*cloud);
+}
+//
 // 對 pointcloude 做特定處理, 測試用
 //
 void pointcloud_process()
@@ -217,30 +231,119 @@ void pointcloud_process()
 	string filename, savename;
 	cout << "Input process filename: ";
 	cin >> filename;
-
+	
 	///*
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::PointCloud<pcl::PointNormal>::Ptr plane_point (new pcl::PointCloud<pcl::PointNormal>);
-	pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr points (new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr points_rgb (new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PointCloud<pcl::FPFHSignature33>::Ptr features (new pcl::PointCloud<pcl::FPFHSignature33>);
 
-	pcl::io::loadPCDFile(filename, *cloud);
+	pcl::io::loadPCDFile(filename, *points);
+	pcl::copyPointCloud(*points, *points_rgb);
 
+	cout << "before filter: " << points->size() << endl;
+	filter(points);
+	cout << "after filter: " << points->size() << endl;
+
+	compute_surface_normals(points, normals);
+
+	vector<int> pointIdx;
+	vector<float> pointSquDisIdx;
 	pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
-	kdtree.setInputCloud(cloud);
+	kdtree.setInputCloud(points);
 
-	double nbr_dist = 0;
-	for (int i = 0; i < cloud->size(); ++i) {
-		vector<int> pointNbrIdx;
-		vector<float> pointNbrSquaredDistance;
-		if (kdtree.nearestKSearch(i, 2, pointNbrIdx, pointNbrSquaredDistance) <= 0) {
-			cout << "error happen" << endl;
-		}
-		cout << i << "  " << pointNbrIdx[0] << endl;
-		nbr_dist += pointNbrSquaredDistance[0];
+	FILE *pFile;
+	pFile = fopen("RGB.txt", "r");
+	int r, g, b;
+	vector<int> R;
+	vector<int> G;
+	vector<int> B;
+	while (fscanf(pFile, "%d %d %d", &r, &g, &b) != EOF) {
+		R.push_back(r);
+		G.push_back(g);
+		B.push_back(b);
 	}
+	fclose(pFile);
 
-	//cout << pointNbrSquaredDistance << endl;
-	cout << nbr_dist / cloud->size() << endl;
+	//pcl::io::savePCDFileASCII("features.pcd", *features);
+
+	Eigen::Vector4f pi, pj, ps, pt;
+	Eigen::Vector4f ni, nj, ns, nt;
+	pi[3] = pj[3] = ni[3] = nj[3] = ps[3] = pt[3] = ns[3] = nt[3] = 0.0f;
+	vector<double> stDev;
+	double stdev_max = 0.0f;
+	for (size_t i = 0; i < points->size(); ++i) {
+		double sum = 0.0f, mid_square_sum = 0.0f;
+		float freq = 0.0f;
+		float f11, f22, f33, f44;
+		double f3_sum = 0.0f;
+		double var, stdev, mean, mid_square, f3_mean;
+		int cnt = 0;
+
+		if (kdtree.nearestKSearch(i, 50, pointIdx, pointSquDisIdx) <= 0) {
+			exit(-1);
+		}
+		for (size_t j = 1; j < pointIdx.size(); ++j) {
+			pi[0] = points->points[pointIdx[j]].x;
+			pi[1] = points->points[pointIdx[j]].y;
+			pi[2] = points->points[pointIdx[j]].z;
+			ni[0] = normals->points[pointIdx[j]].normal_x;
+			ni[1] = normals->points[pointIdx[j]].normal_y;
+			ni[2] = normals->points[pointIdx[j]].normal_z;
+
+			for (size_t k = j + 1; k < pointIdx.size(); ++k) {
+				pj[0] = points->points[pointIdx[k]].x;
+				pj[1] = points->points[pointIdx[k]].y;
+				pj[2] = points->points[pointIdx[k]].z;
+				nj[0] = normals->points[pointIdx[k]].normal_x;
+				nj[1] = normals->points[pointIdx[k]].normal_y;
+				nj[2] = normals->points[pointIdx[k]].normal_z;
+
+				pcl::computePairFeatures(pi, ni, pj, nj, f11, f22, f33, f44);
+				f3_sum += f11;
+				++cnt;
+			}
+			//freq = freq + features->points[i].histogram[j];
+			//sum = sum + (features->points[i].histogram[j] * (j + 1));
+			//mid_square_sum = mid_square_sum + (features->points[i].histogram[j] * (j + 1) * (j + 1));
+		}
+
+		f3_mean = (f3_sum + cnt ) / cnt / 2;
+		points_rgb->points[i].r = R[f3_mean * 63];
+		points_rgb->points[i].g = G[f3_mean * 63];
+		points_rgb->points[i].b = B[f3_mean * 63];
+		/*
+		mean = sum / freq;
+		mid_square = mid_square_sum / freq;
+		var = mid_square - (mean * mean);
+		stdev = sqrt(var);
+		cout << stdev << endl;
+		stDev.push_back(stdev);
+		if (stdev > stdev_max) stdev_max = stdev;
+		*/
+
+	}
+	pcl::io::savePCDFileASCII("output.pcd", *points_rgb);
+
+	/* shift point cloud */
+	/*
+	pcl::PointCloud<pcl::PointXYZ>::Ptr points1 (new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PointCloud<pcl::PointXYZ>::Ptr points2 (new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::io::loadPCDFile("foreground_1_transformed.pcd", *points1);
+	pcl::io::loadPCDFile("model.pcd", *points2);
+	double x = points2->points[95414].x - points1->points[6412].x;
+	double y = points2->points[95414].y - points1->points[6412].y;
+	double z = points2->points[95414].z - points1->points[6412].z;
+	for (int i = 0; i < points1->size(); ++i) {
+		points1->points[i].x += x;
+		points1->points[i].y += y;
+		points1->points[i].z += z;
+	}
+	pcl::io::savePCDFileASCII("foreground_1_transformed_shift.pcd", *points1);
+	*/
+
+	/*
+
 	//pcl::visualization::PCLVisualizer viewer;
 	//viewer.setBackgroundColor(0.2, 0.3, 0.4);
 
