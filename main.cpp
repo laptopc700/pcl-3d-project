@@ -299,8 +299,8 @@ void icp_demo()
 	pcl::transformPointCloud (*points1, *point1_transformed, initial_transform);
 
 	pcl::IterativeClosestPoint<PointType, PointType> icp;
-	typedef pcl::registration::TransformationEstimationPointToPlaneLLS<pcl::PointNormal, pcl::PointNormal> PointToPlane;
-	boost::shared_ptr<PointToPlane> point_to_plane(new PointToPlane);
+	//typedef pcl::registration::TransformationEstimationPointToPlaneLLS<pcl::PointNormal, pcl::PointNormal> PointToPlane;
+	//boost::shared_ptr<PointToPlane> point_to_plane(new PointToPlane);
 	//icp.setTransformationEstimation(point_to_plane);
 
 	icp.setInputCloud (point1_transformed);
@@ -374,8 +374,9 @@ void point_to_plane_icp()
 	fpfh.compute(*descriptor2);
 
 	// Initial alignment
+	/*
 	pcl::SampleConsensusInitialAlignment<pcl::PointNormal, pcl::PointNormal, FeatureType> sac_ia;
-	sac_ia.setMinSampleDistance(0.04);
+	sac_ia.setMinSampleDistance(0.035);
 	sac_ia.setMaxCorrespondenceDistance(0.01);
 	sac_ia.setMaximumIterations(1000);
 
@@ -388,9 +389,9 @@ void point_to_plane_icp()
 	pcl::PointCloud<pcl::PointNormal>::Ptr initial_output (new pcl::PointCloud<pcl::PointNormal>);
 	sac_ia.align(*initial_output);
 	Eigen::Matrix4f initial_transform = sac_ia.getFinalTransformation();
-
+	*/
 	// point to plane icp
-	pcl::transformPointCloud (*src, *src, initial_transform);
+	//pcl::transformPointCloud (*src, *src, initial_transform);
 	pcl::IterativeClosestPoint<pcl::PointNormal, pcl::PointNormal> icp;
 	typedef pcl::registration::TransformationEstimationPointToPlaneLLS<pcl::PointNormal, pcl::PointNormal> PointToPlane;
 	boost::shared_ptr<PointToPlane> point_to_plane(new PointToPlane);
@@ -398,13 +399,14 @@ void point_to_plane_icp()
 	icp.setInputCloud(src);
 	icp.setInputTarget(tgt);
 	icp.setRANSACIterations(100);
-	icp.setMaximumIterations(500);
-	icp.setTransformationEpsilon(1e-3);
+	icp.setMaximumIterations(1000);
+	icp.setTransformationEpsilon(1e-4);
 
 	pcl::PointCloud<pcl::PointNormal> result;
 	icp.align(result);
 
-	Eigen::Matrix4f final_transform = icp.getFinalTransformation() * initial_transform;
+	//Eigen::Matrix4f final_transform = icp.getFinalTransformation() * initial_transform;
+	Eigen::Matrix4f final_transform = icp.getFinalTransformation();
 
 	pcl::PointCloud<PointType>::Ptr final (new pcl::PointCloud<PointType>);
 	pcl::transformPointCloud(*points1, *final, final_transform);
