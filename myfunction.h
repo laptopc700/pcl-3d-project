@@ -26,9 +26,12 @@
 #include <pcl/registration/correspondence_estimation.h>
 
 #include <pcl/surface/texture_mapping.h>
+#include <pcl/surface/impl/mls.hpp>
+
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
+
 
 typedef pcl::PointXYZ PointType;
 typedef pcl::FPFHSignature33 FeatureType;
@@ -38,8 +41,8 @@ typedef struct func {
 	int key;
 } func;
 
-const float DOWNSAMPLE_RATE = 0.05f; // big rate -> small points
-const int KSEARCH_SIZE = 100;
+const float DOWNSAMPLE_RATE = 0.005f; // big rate -> small points
+const int KSEARCH_SIZE = 200;
 
 
 void prtUsage();
